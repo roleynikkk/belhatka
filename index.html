@@ -1,0 +1,402 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Белорусская хатка - Найди пару</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background: url('images/bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* Панель управления звуком */
+        #audio-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.85);
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .subtitle {
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        h1 {
+            font-size: 5rem;
+            color: #ff9800;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        button {
+            padding: 20px 60px;
+            font-size: 3rem;
+            font-family: inherit;
+            font-weight: bold;
+            color: white;
+            background-color: #4CAF50;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            background-color: #45a049;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        /* Игровое поле - две горизонтальные строки */
+        .game-board {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 40px; /* Расстояние между строками и стрелкой */
+            padding: 20px;
+            width: 100%;
+            max-width: 1600px; /* Чтобы карточки не переносились на узких экранах */
+        }
+
+        .row {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            gap: 30px; /* Расстояние между карточками в ряду */
+        }
+
+        /* Анимация пульсирующей стрелки ВНИЗ */
+        .arrow-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .arrow-divider svg {
+            width: 100px;
+            height: 100px;
+            animation: pulseArrowDown 1.5s infinite ease-in-out;
+            filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.2));
+        }
+
+        @keyframes pulseArrowDown {
+            0% { transform: translateY(0) scale(1); opacity: 0.8; }
+            50% { transform: translateY(20px) scale(1.05); opacity: 1; }
+            100% { transform: translateY(0) scale(1); opacity: 0.8; }
+        }
+
+        /* Карточки стали значительно крупнее */
+        .card {
+            width: 220px; 
+            height: 220px;
+            background-color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border: 8px solid transparent;
+        }
+
+        .card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
+
+        /* Состояния карточек */
+        .card.selected {
+            transform: scale(1.08);
+            border-color: #2196F3;
+            box-shadow: 0 0 25px #2196F3;
+        }
+
+        .card.correct {
+            border-color: #4CAF50;
+            box-shadow: 0 0 30px #4CAF50;
+            background-color: #e8f5e9;
+        }
+
+        .card.wrong {
+            border-color: #f44336;
+            box-shadow: 0 0 30px #f44336;
+            animation: shake 0.5s;
+        }
+
+        .card.hidden {
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s 0.5s, opacity 0.5s linear;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-15px); }
+            50% { transform: translateX(15px); }
+            75% { transform: translateX(-15px); }
+            100% { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Управление звуком -->
+    <div id="audio-controls">
+        <label for="volume-slider">Громкость 🔊</label>
+        <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.5">
+    </div>
+
+    <!-- Главное меню -->
+    <div id="menu-screen" class="screen active">
+        <div class="subtitle">ГУО "ГУДЕВИЧСКИЙ ДЕТСКИЙ САД"</div>
+        <h1 style="color: #4CAF50;">Белорусская хатка</h1>
+        <button id="start-btn">ИГРАТЬ</button>
+    </div>
+
+    <!-- Экран игры -->
+    <div id="game-screen" class="screen">
+        <div class="game-board">
+            <!-- Верхний ряд со старыми предметами -->
+            <div class="row" id="row-old"></div>
+            
+            <!-- Центральная анимированная стрелка ВНИЗ -->
+            <div class="arrow-divider">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#FF9800" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14M5 12l7 7 7-7"/>
+                </svg>
+            </div>
+
+            <!-- Нижний ряд с новыми предметами -->
+            <div class="row" id="row-new"></div>
+        </div>
+    </div>
+
+    <!-- Экран победы -->
+    <div id="win-screen" class="screen">
+        <h1>ПОЗДРАВЛЯЕМ!</h1>
+        <button id="restart-btn">ИГРАТЬ ЕЩЕ РАЗ</button>
+    </div>
+
+    <script>
+        // --- Настройка Аудио ---
+        const bgMusic = new Audio('audio/bg.mp3');
+        bgMusic.loop = true;
+        
+        const winSound = new Audio('audio/win.mp3');
+        const loseSound = new Audio('audio/lose.mp3');
+
+        const volumeSlider = document.getElementById('volume-slider');
+        function updateVolume() {
+            const vol = volumeSlider.value;
+            bgMusic.volume = vol;
+            winSound.volume = vol;
+            loseSound.volume = vol;
+        }
+        volumeSlider.addEventListener('input', updateVolume);
+        updateVolume();
+
+        // --- Элементы интерфейса ---
+        const screens = {
+            menu: document.getElementById('menu-screen'),
+            game: document.getElementById('game-screen'),
+            win: document.getElementById('win-screen')
+        };
+
+        const rowOld = document.getElementById('row-old');
+        const rowNew = document.getElementById('row-new');
+        
+        const oldItems = [
+            { id: 1, img: 'images/1_old.jpg' },
+            { id: 2, img: 'images/2_old.jpg' },
+            { id: 3, img: 'images/3_old.jpg' },
+            { id: 4, img: 'images/4_old.jpg' },
+            { id: 5, img: 'images/5_old.jpg' }
+        ];
+
+        const newItems = [
+            { id: 1, img: 'images/1_new.jpg' },
+            { id: 2, img: 'images/2_new.jpg' },
+            { id: 3, img: 'images/3_new.jpg' },
+            { id: 4, img: 'images/4_new.jpg' },
+            { id: 5, img: 'images/5_new.jpg' }
+        ];
+
+        let firstCard = null;
+        let secondCard = null;
+        let lockBoard = false;
+        let matchesFound = 0;
+
+        function showScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.remove('active'));
+            screens[screenName].classList.add('active');
+        }
+
+        function startGame() {
+            rowOld.innerHTML = '';
+            rowNew.innerHTML = '';
+            matchesFound = 0;
+            firstCard = null;
+            secondCard = null;
+            lockBoard = false;
+
+            bgMusic.play().catch(e => console.log("Музыка ждет клика"));
+
+            const shuffledOld = [...oldItems].sort(() => 0.5 - Math.random());
+            const shuffledNew = [...newItems].sort(() => 0.5 - Math.random());
+
+            shuffledOld.forEach(item => {
+                rowOld.appendChild(createCard(item, 'old'));
+            });
+
+            shuffledNew.forEach(item => {
+                rowNew.appendChild(createCard(item, 'new'));
+            });
+
+            showScreen('game');
+        }
+
+        function createCard(item, type) {
+            const cardElement = document.createElement('div');
+            cardElement.classList.add('card');
+            cardElement.dataset.matchId = item.id;
+            cardElement.dataset.type = type;
+            
+            const imgElement = document.createElement('img');
+            imgElement.src = item.img;
+            cardElement.appendChild(imgElement);
+
+            cardElement.addEventListener('click', flipCard);
+            return cardElement;
+        }
+
+        function flipCard() {
+            if (lockBoard) return;
+            if (this === firstCard) return;
+
+            if (firstCard && firstCard.dataset.type === this.dataset.type) {
+                firstCard.classList.remove('selected');
+                firstCard = this;
+                this.classList.add('selected');
+                return;
+            }
+
+            this.classList.add('selected');
+
+            if (!firstCard) {
+                firstCard = this;
+                return;
+            }
+
+            secondCard = this;
+            checkForMatch();
+        }
+
+        function checkForMatch() {
+            let isMatch = firstCard.dataset.matchId === secondCard.dataset.matchId;
+
+            if (isMatch) {
+                winSound.currentTime = 0;
+                winSound.play();
+                disableCards();
+            } else {
+                loseSound.currentTime = 0;
+                loseSound.play();
+                unflipCards();
+            }
+        }
+
+        function disableCards() {
+            firstCard.classList.remove('selected');
+            secondCard.classList.remove('selected');
+            firstCard.classList.add('correct');
+            secondCard.classList.add('correct');
+            lockBoard = true;
+
+            setTimeout(() => {
+                firstCard.classList.add('hidden');
+                secondCard.classList.add('hidden');
+                resetBoard();
+                
+                matchesFound++;
+                if (matchesFound === oldItems.length) {
+                    setTimeout(() => showScreen('win'), 500);
+                }
+            }, 1000);
+        }
+
+        function unflipCards() {
+            lockBoard = true;
+            firstCard.classList.remove('selected');
+            secondCard.classList.remove('selected');
+            firstCard.classList.add('wrong');
+            secondCard.classList.add('wrong');
+
+            setTimeout(() => {
+                firstCard.classList.remove('wrong');
+                secondCard.classList.remove('wrong');
+                resetBoard();
+            }, 1200);
+        }
+
+        function resetBoard() {
+            [firstCard, secondCard] = [null, null];
+            lockBoard = false;
+        }
+
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', startGame);
+
+    </script>
+</body>
+</html>
